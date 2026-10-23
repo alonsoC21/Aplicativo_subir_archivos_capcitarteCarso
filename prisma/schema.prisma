@@ -1,0 +1,47 @@
+// Esquema Prisma — Portal de Transferencia Segura de Archivos (Capacítate Carso)
+// Motor: SQLite en desarrollo local. Para producción (AWS) se cambia a postgresql.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model UploadLink {
+  id           String          @id @default(cuid())
+  name         String // Nombre identificador asignado por el admin
+  slug         String          @unique // Segmento aleatorio no adivinable de la URL
+  passwordHash String // Hash bcrypt de la contraseña del enlace
+  file         UploadedFile?
+  sessions     ClientSession[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([createdAt])
+}
+
+model UploadedFile {
+  id           String     @id @default(cuid())
+  linkId       String     @unique
+  link         UploadLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  originalName String // Nombre original (ej. curso.zip)
+  extension    String // Extensión (ej. zip)
+  sizeBytes    BigInt // Tamaño en bytes
+  mimeType     String // Tipo MIME validado
+  storageKey   String // Clave en el StorageProvider (ruta local hoy, key S3 mañana)
+  uploadedAt   DateTime   @default(now())
+}
+
+model ClientSession {
+  id        String     @id @default(cuid())
+  linkId    String
+  link      UploadLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  tokenHash String // Hash del token de sesión del cliente
+  createdAt DateTime   @default(now())
+  expiresAt DateTime
+
+  @@index([linkId])
+}
